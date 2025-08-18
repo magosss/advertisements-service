@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тестирование API Объявлений</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        h2 {
+            color: #666;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        .api-section {
+            margin-bottom: 30px;
+        }
+        .endpoint {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #007bff;
+        }
+        .method {
+            font-weight: bold;
+            color: #007bff;
+        }
+        .url {
+            font-family: monospace;
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        .description {
+            color: #666;
+            margin-top: 5px;
+        }
+        .response {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 10px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .btn-success {
+            background: #28a745;
+        }
+        .btn-success:hover {
+            background: #1e7e34;
+        }
+        .btn-danger {
+            background: #dc3545;
+        }
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Тестирование API Сервиса Объявлений</h1>
+    
+    <div class="container">
+        <h2>📊 Статус API</h2>
+        <button class="btn" onclick="testAPI()">Проверить статус API</button>
+        <div id="status" class="response"></div>
+    </div>
+
+    <div class="grid">
+        <div class="container">
+            <h2>📋 Категории</h2>
+            <div class="api-section">
+                <div class="endpoint">
+                    <div class="method">GET</div>
+                    <div class="url">/api/categories/</div>
+                    <div class="description">Получить список всех категорий</div>
+                    <button class="btn btn-success" onclick="getCategories()">Получить категории</button>
+                    <div id="categories" class="response"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <h2>📝 Объявления</h2>
+            <div class="api-section">
+                <div class="endpoint">
+                    <div class="method">GET</div>
+                    <div class="url">/api/advertisements/</div>
+                    <div class="description">Получить список объявлений</div>
+                    <button class="btn btn-success" onclick="getAdvertisements()">Получить объявления</button>
+                    <div id="advertisements" class="response"></div>
+                </div>
+
+                <div class="endpoint">
+                    <div class="method">POST</div>
+                    <div class="url">/api/advertisements/</div>
+                    <div class="description">Создать новое объявление</div>
+                    
+                    <div class="form-group">
+                        <label>Заголовок:</label>
+                        <input type="text" id="title" placeholder="Введите заголовок">
+                    </div>
+                    <div class="form-group">
+                        <label>Описание:</label>
+                        <textarea id="description" placeholder="Введите описание"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Цена:</label>
+                        <input type="number" id="price" placeholder="Введите цену">
+                    </div>
+                    <div class="form-group">
+                        <label>Категория:</label>
+                        <select id="category">
+                            <option value="">Выберите категорию</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Местоположение:</label>
+                        <input type="text" id="location" placeholder="Введите местоположение">
+                    </div>
+                    
+                    <button class="btn btn-success" onclick="createAdvertisement()">Создать объявление</button>
+                    <div id="create-result" class="response"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>🔍 Поиск и фильтрация</h2>
+        <div class="api-section">
+            <div class="form-group">
+                <label>Поиск:</label>
+                <input type="text" id="search" placeholder="Введите поисковый запрос">
+                <button class="btn" onclick="searchAdvertisements()">Поиск</button>
+            </div>
+            <div class="form-group">
+                <label>Минимальная цена:</label>
+                <input type="number" id="min-price" placeholder="Мин. цена">
+                <label>Максимальная цена:</label>
+                <input type="number" id="max-price" placeholder="Макс. цена">
+                <button class="btn" onclick="filterByPrice()">Фильтр по цене</button>
+            </div>
+            <div id="search-results" class="response"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000/api';
+
+        // Получить CSRF токен
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // Проверить статус API
+        async function testAPI() {
+            try {
+                const response = await fetch(`${API_BASE}/categories/`);
+                const data = await response.json();
+                document.getElementById('status').textContent = 
+                    `✅ API работает! Получено ${data.length} категорий`;
+            } catch (error) {
+                document.getElementById('status').textContent = 
+                    `❌ Ошибка: ${error.message}`;
+            }
+        }
+
+        // Получить категории
+        async function getCategories() {
+            try {
+                const response = await fetch(`${API_BASE}/categories/`);
+                const data = await response.json();
+                document.getElementById('categories').textContent = 
+                    JSON.stringify(data, null, 2);
+                
+                // Заполнить селект категорий
+                const select = document.getElementById('category');
+                select.innerHTML = '<option value="">Выберите категорию</option>';
+                data.forEach(cat => {
+                    select.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
+                });
+            } catch (error) {
+                document.getElementById('categories').textContent = 
+                    `Ошибка: ${error.message}`;
+            }
+        }
+
+        // Получить объявления
+        async function getAdvertisements() {
+            try {
+                const response = await fetch(`${API_BASE}/advertisements/`);
+                const data = await response.json();
+                document.getElementById('advertisements').textContent = 
+                    JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('advertisements').textContent = 
+                    `Ошибка: ${error.message}`;
+            }
+        }
+
+        // Создать объявление
+        async function createAdvertisement() {
+            const data = {
+                title: document.getElementById('title').value,
+                description: document.getElementById('description').value,
+                price: parseFloat(document.getElementById('price').value),
+                category: parseInt(document.getElementById('category').value),
+                location: document.getElementById('location').value
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/advertisements/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    document.getElementById('create-result').textContent = 
+                        `✅ Объявление создано!\n${JSON.stringify(result, null, 2)}`;
+                } else {
+                    const error = await response.json();
+                    document.getElementById('create-result').textContent = 
+                        `❌ Ошибка: ${JSON.stringify(error, null, 2)}`;
+                }
+            } catch (error) {
+                document.getElementById('create-result').textContent = 
+                    `Ошибка: ${error.message}`;
+            }
+        }
+
+        // Поиск объявлений
+        async function searchAdvertisements() {
+            const query = document.getElementById('search').value;
+            try {
+                const response = await fetch(`${API_BASE}/advertisements/?search=${encodeURIComponent(query)}`);
+                const data = await response.json();
+                document.getElementById('search-results').textContent = 
+                    JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('search-results').textContent = 
+                    `Ошибка: ${error.message}`;
+            }
+        }
+
+        // Фильтр по цене
+        async function filterByPrice() {
+            const minPrice = document.getElementById('min-price').value;
+            const maxPrice = document.getElementById('max-price').value;
+            
+            let url = `${API_BASE}/advertisements/`;
+            const params = [];
+            
+            if (minPrice) params.push(`min_price=${minPrice}`);
+            if (maxPrice) params.push(`max_price=${maxPrice}`);
+            
+            if (params.length > 0) {
+                url += '?' + params.join('&');
+            }
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                document.getElementById('search-results').textContent = 
+                    JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('search-results').textContent = 
+                    `Ошибка: ${error.message}`;
+            }
+        }
+
+        // Инициализация при загрузке страницы
+        window.onload = function() {
+            testAPI();
+            getCategories();
+        };
+    </script>
+</body>
+</html>
