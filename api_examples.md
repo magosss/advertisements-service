@@ -1,4 +1,6 @@
-# Примеры использования API
+# API для iOS приложения Arbito
+
+REST API для мобильного приложения объявлений, написанного на Swift.
 
 ## Базовый URL
 ```
@@ -186,16 +188,6 @@ POST /api/auth/logout/
 curl -X GET http://localhost:8000/api/cities/
 ```
 
-### Получить список категорий
-```bash
-curl -X GET http://localhost:8000/api/categories/
-```
-
-### Получить объявления
-```bash
-curl -X GET http://localhost:8000/api/advertisements/
-```
-
 ### Получить объявления по городу
 ```bash
 curl -X GET http://localhost:8000/api/advertisements/by_city/?city_slug=moscow
@@ -206,98 +198,7 @@ curl -X GET http://localhost:8000/api/advertisements/by_city/?city_slug=moscow
 curl -X GET http://localhost:8000/api/advertisements/by_category_and_city/?category_slug=electronics&city_slug=moscow
 ```
 
-### Создать объявление (с аутентификацией)
-```bash
-curl -X POST http://localhost:8000/api/advertisements/ \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Basic $(echo -n 'username:password' | base64)" \
-  -d '{
-    "title": "Продаю ноутбук",
-    "description": "MacBook Pro 2020",
-    "price": 80000.00,
-    "category": 1,
-    "location": "Санкт-Петербург"
-  }'
-```
 
-## Примеры с JavaScript (fetch)
-
-### Получить города
-```javascript
-fetch('http://localhost:8000/api/cities/')
-  .then(response => response.json())
-  .then(data => {
-    console.log('Города:', data.results);
-  });
-```
-
-### Получить объявления
-```javascript
-fetch('http://localhost:8000/api/advertisements/')
-  .then(response => response.json())
-  .then(data => {
-    console.log('Объявления:', data.results);
-  });
-```
-
-### Получить объявления по городу
-```javascript
-fetch('http://localhost:8000/api/advertisements/by_city/?city_slug=moscow')
-  .then(response => response.json())
-  .then(data => {
-    console.log('Объявления в Москве:', data.results);
-  });
-```
-
-### Получить объявления по категории и городу
-```javascript
-fetch('http://localhost:8000/api/advertisements/by_category_and_city/?category_slug=electronics&city_slug=moscow')
-  .then(response => response.json())
-  .then(data => {
-    console.log('Электроника в Москве:', data.results);
-  });
-```
-
-### Создать объявление
-```javascript
-fetch('http://localhost:8000/api/advertisements/', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'X-CSRFToken': getCookie('csrftoken')
-  },
-  body: JSON.stringify({
-    title: 'Продаю велосипед',
-    description: 'Горный велосипед в отличном состоянии',
-    price: 15000.00,
-    category: 3,
-    city: 1,
-    location: 'Казань'
-  })
-})
-.then(response => response.json())
-.then(data => {
-  console.log('Создано объявление:', data);
-});
-```
-
-### Функция для получения CSRF токена
-```javascript
-function getCookie(name) {
-  let cookieValue = null;
-  if (document.cookie && document.cookie !== '') {
-    const cookies = document.cookie.split(';');
-    for (let i = 0; i < cookies.length; i++) {
-      const cookie = cookies[i].trim();
-      if (cookie.substring(0, name.length + 1) === (name + '=')) {
-        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-        break;
-      }
-    }
-  }
-  return cookieValue;
-}
-```
 
 ## Пагинация
 
