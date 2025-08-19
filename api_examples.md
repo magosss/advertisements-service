@@ -5,7 +5,19 @@
 http://localhost:8000/api/
 ```
 
-## 1. Категории
+## 1. Города
+
+### Получить список всех городов
+```bash
+GET /api/cities/
+```
+
+### Получить конкретный город
+```bash
+GET /api/cities/moscow/
+```
+
+## 2. Категории
 
 ### Получить список всех категорий
 ```bash
@@ -58,6 +70,7 @@ Content-Type: application/json
     "description": "Отличное состояние, все работает",
     "price": 45000.00,
     "category": 1,
+    "city": 1,
     "location": "Москва",
     "contact_phone": "+7 999 123-45-67",
     "contact_email": "seller@example.com"
@@ -96,6 +109,24 @@ GET /api/advertisements/featured/
 ### Поиск объявлений
 ```bash
 GET /api/advertisements/search/?q=iPhone
+```
+
+### Получить объявления по городу
+```bash
+# По ID города
+GET /api/advertisements/by_city/?city_id=1
+
+# По slug города
+GET /api/advertisements/by_city/?city_slug=moscow
+```
+
+### Получить объявления по категории и городу
+```bash
+# По ID категории и города
+GET /api/advertisements/by_category_and_city/?category_id=1&city_id=1
+
+# По slug категории и города
+GET /api/advertisements/by_category_and_city/?category_slug=electronics&city_slug=moscow
 ```
 
 ### Увеличить счетчик просмотров
@@ -150,6 +181,11 @@ POST /api/auth/logout/
 
 ## Примеры с curl
 
+### Получить список городов
+```bash
+curl -X GET http://localhost:8000/api/cities/
+```
+
 ### Получить список категорий
 ```bash
 curl -X GET http://localhost:8000/api/categories/
@@ -158,6 +194,16 @@ curl -X GET http://localhost:8000/api/categories/
 ### Получить объявления
 ```bash
 curl -X GET http://localhost:8000/api/advertisements/
+```
+
+### Получить объявления по городу
+```bash
+curl -X GET http://localhost:8000/api/advertisements/by_city/?city_slug=moscow
+```
+
+### Получить объявления по категории и городу
+```bash
+curl -X GET http://localhost:8000/api/advertisements/by_category_and_city/?category_slug=electronics&city_slug=moscow
 ```
 
 ### Создать объявление (с аутентификацией)
@@ -176,12 +222,39 @@ curl -X POST http://localhost:8000/api/advertisements/ \
 
 ## Примеры с JavaScript (fetch)
 
+### Получить города
+```javascript
+fetch('http://localhost:8000/api/cities/')
+  .then(response => response.json())
+  .then(data => {
+    console.log('Города:', data.results);
+  });
+```
+
 ### Получить объявления
 ```javascript
 fetch('http://localhost:8000/api/advertisements/')
   .then(response => response.json())
   .then(data => {
     console.log('Объявления:', data.results);
+  });
+```
+
+### Получить объявления по городу
+```javascript
+fetch('http://localhost:8000/api/advertisements/by_city/?city_slug=moscow')
+  .then(response => response.json())
+  .then(data => {
+    console.log('Объявления в Москве:', data.results);
+  });
+```
+
+### Получить объявления по категории и городу
+```javascript
+fetch('http://localhost:8000/api/advertisements/by_category_and_city/?category_slug=electronics&city_slug=moscow')
+  .then(response => response.json())
+  .then(data => {
+    console.log('Электроника в Москве:', data.results);
   });
 ```
 
@@ -198,6 +271,7 @@ fetch('http://localhost:8000/api/advertisements/', {
     description: 'Горный велосипед в отличном состоянии',
     price: 15000.00,
     category: 3,
+    city: 1,
     location: 'Казань'
   })
 })
@@ -243,6 +317,7 @@ GET /api/advertisements/?page_size=10
 
 ### Все доступные фильтры
 - `category` - ID категории
+- `city` - ID города
 - `status` - Статус (active, inactive, pending, rejected)
 - `author` - ID автора
 - `is_featured` - Рекомендуемые объявления (true/false)
@@ -253,5 +328,5 @@ GET /api/advertisements/?page_size=10
 
 ### Комбинированная фильтрация
 ```bash
-GET /api/advertisements/?category=1&min_price=1000&max_price=50000&location=Москва&ordering=-created_at
+GET /api/advertisements/?category=1&city=1&min_price=1000&max_price=50000&location=Москва&ordering=-created_at
 ```
