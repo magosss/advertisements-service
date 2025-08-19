@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Category, Advertisement, AdvertisementImage, Favorite
+from .models import City, Category, Advertisement, AdvertisementImage, Favorite
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -9,6 +9,18 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'username', 'first_name', 'last_name', 'email']
         read_only_fields = ['id']
+
+
+class CitySerializer(serializers.ModelSerializer):
+    """Сериализатор для города"""
+    advertisements_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = City
+        fields = ['id', 'name', 'slug', 'is_active', 'advertisements_count', 'created_at']
+
+    def get_advertisements_count(self, obj):
+        return obj.advertisements.filter(status='active').count()
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -43,6 +55,7 @@ class AdvertisementImageSerializer(serializers.ModelSerializer):
 class AdvertisementListSerializer(serializers.ModelSerializer):
     """Сериализатор для списка объявлений"""
     category = CategorySerializer(read_only=True)
+    city = CitySerializer(read_only=True)
     author = UserSerializer(read_only=True)
     primary_image = serializers.SerializerMethodField()
     images_count = serializers.SerializerMethodField()
@@ -50,7 +63,7 @@ class AdvertisementListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Advertisement
         fields = [
-            'id', 'title', 'price', 'category', 'author', 'status',
+            'id', 'title', 'price', 'category', 'city', 'author', 'status',
             'location', 'is_featured', 'views_count', 'primary_image',
             'images_count', 'created_at', 'expires_at', 'is_expired'
         ]
@@ -68,6 +81,7 @@ class AdvertisementListSerializer(serializers.ModelSerializer):
 class AdvertisementDetailSerializer(serializers.ModelSerializer):
     """Сериализатор для детального просмотра объявления"""
     category = CategorySerializer(read_only=True)
+    city = CitySerializer(read_only=True)
     author = UserSerializer(read_only=True)
     images = AdvertisementImageSerializer(many=True, read_only=True)
     is_favorited = serializers.SerializerMethodField()
@@ -75,7 +89,7 @@ class AdvertisementDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Advertisement
         fields = [
-            'id', 'title', 'description', 'price', 'category', 'author',
+            'id', 'title', 'description', 'price', 'category', 'city', 'author',
             'status', 'location', 'contact_phone', 'contact_email',
             'is_featured', 'views_count', 'images', 'is_favorited',
             'created_at', 'updated_at', 'expires_at', 'is_expired'
@@ -95,7 +109,7 @@ class AdvertisementCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Advertisement
         fields = [
-            'title', 'description', 'price', 'category', 'location',
+            'title', 'description', 'price', 'category', 'city', 'location',
             'contact_phone', 'contact_email', 'images'
         ]
 

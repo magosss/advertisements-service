@@ -1,6 +1,19 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Category, Advertisement, AdvertisementImage, Favorite
+from .models import City, Category, Advertisement, AdvertisementImage, Favorite
+
+
+@admin.register(City)
+class CityAdmin(admin.ModelAdmin):
+    list_display = ['name', 'slug', 'is_active', 'advertisements_count', 'created_at']
+    list_filter = ['is_active', 'created_at']
+    search_fields = ['name']
+    prepopulated_fields = {'slug': ('name',)}
+    readonly_fields = ['created_at']
+
+    def advertisements_count(self, obj):
+        return obj.advertisements.filter(status='active').count()
+    advertisements_count.short_description = 'Количество объявлений'
 
 
 @admin.register(Category)
@@ -25,19 +38,19 @@ class AdvertisementImageInline(admin.TabularInline):
 @admin.register(Advertisement)
 class AdvertisementAdmin(admin.ModelAdmin):
     list_display = [
-        'title', 'author', 'category', 'price', 'status', 
+        'title', 'author', 'category', 'city', 'price', 'status', 
         'is_featured', 'views_count', 'created_at', 'is_expired_display'
     ]
     list_filter = [
-        'status', 'category', 'is_featured', 'created_at', 
+        'status', 'category', 'city', 'is_featured', 'created_at', 
         'expires_at', 'author'
     ]
-    search_fields = ['title', 'description', 'author__username', 'location']
+    search_fields = ['title', 'description', 'author__username', 'location', 'city__name']
     readonly_fields = ['views_count', 'created_at', 'updated_at', 'is_expired']
     inlines = [AdvertisementImageInline]
     fieldsets = (
         ('Основная информация', {
-            'fields': ('title', 'description', 'price', 'category', 'author')
+            'fields': ('title', 'description', 'price', 'category', 'city', 'author')
         }),
         ('Статус и настройки', {
             'fields': ('status', 'is_featured', 'views_count')
@@ -57,7 +70,7 @@ class AdvertisementAdmin(admin.ModelAdmin):
     is_expired_display.short_description = 'Статус истечения'
 
     def get_queryset(self, request):
-        return super().get_queryset(request).select_related('author', 'category')
+        return super().get_queryset(request).select_related('author', 'category', 'city')
 
 
 @admin.register(AdvertisementImage)

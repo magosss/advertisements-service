@@ -4,6 +4,22 @@ from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator
 
 
+class City(models.Model):
+    """Модель города"""
+    name = models.CharField(max_length=100, verbose_name='Название')
+    slug = models.SlugField(max_length=100, unique=True, verbose_name='URL')
+    is_active = models.BooleanField(default=True, verbose_name='Активный')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создания')
+    
+    class Meta:
+        verbose_name = 'Город'
+        verbose_name_plural = 'Города'
+        ordering = ['name']
+    
+    def __str__(self):
+        return self.name
+
+
 class Category(models.Model):
     """Модель категории объявлений"""
     name = models.CharField(max_length=100, verbose_name='Название')
@@ -44,6 +60,14 @@ class Advertisement(models.Model):
         on_delete=models.CASCADE, 
         related_name='advertisements',
         verbose_name='Категория'
+    )
+    city = models.ForeignKey(
+        City,
+        on_delete=models.CASCADE,
+        related_name='advertisements',
+        verbose_name='Город',
+        null=True,
+        blank=True
     )
     author = models.ForeignKey(
         User, 

@@ -5,13 +5,24 @@ from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnl
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, F
 from django.utils import timezone
-from .models import Category, Advertisement, AdvertisementImage, Favorite
+from .models import City, Category, Advertisement, AdvertisementImage, Favorite
 from .serializers import (
-    CategorySerializer, AdvertisementListSerializer, AdvertisementDetailSerializer,
+    CitySerializer, CategorySerializer, AdvertisementListSerializer, AdvertisementDetailSerializer,
     AdvertisementCreateSerializer, AdvertisementImageSerializer,
     FavoriteSerializer, FavoriteCreateSerializer
 )
 from .permissions import IsOwnerOrReadOnly
+
+
+class CityViewSet(viewsets.ReadOnlyModelViewSet):
+    """Представление для городов"""
+    queryset = City.objects.filter(is_active=True)
+    serializer_class = CitySerializer
+    lookup_field = 'slug'
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['name']
+    ordering_fields = ['name', 'created_at']
+    ordering = ['name']
 
 
 class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
@@ -28,14 +39,14 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
 class AdvertisementViewSet(viewsets.ModelViewSet):
     """Представление для объявлений"""
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['category', 'status', 'author', 'is_featured']
-    search_fields = ['title', 'description', 'location']
+    filterset_fields = ['category', 'city', 'status', 'author', 'is_featured']
+    search_fields = ['title', 'description', 'location', 'city__name']
     ordering_fields = ['price', 'created_at', 'views_count', 'title']
     ordering = ['-created_at']
     permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
 
     def get_queryset(self):
-        queryset = Advertisement.objects.select_related('category', 'author').prefetch_related('images')
+        queryset = Advertisement.objects.select_related('category', 'city', 'author').prefetch_related('images')
         
         # Фильтрация по статусу (по умолчанию показываем только активные)
         status_filter = self.request.query_params.get('status', 'active')
@@ -125,6 +136,66 @@ class AdvertisementViewSet(viewsets.ModelViewSet):
             Q(location__icontains=query) |
             Q(category__name__icontains=query)
         )
+        
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def by_city(self, request):
+        """Получает объявления по городу"""
+        city_id = request.query_params.get('city_id')
+        city_slug = request.query_params.get('city_slug')
+        
+        if not city_id and not city_slug:
+            return Response({'detail': 'city_id or city_slug parameter is required'}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+        
+        queryset = self.get_queryset()
+        
+        if city_id:
+            queryset = queryset.filter(city_id=city_id)
+        elif city_slug:
+            queryset = queryset.filter(city__slug=city_slug)
+        
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def by_category_and_city(self, request):
+        """Получает объявления по категории и городу"""
+        category_id = request.query_params.get('category_id')
+        category_slug = request.query_params.get('category_slug')
+        city_id = request.query_params.get('city_id')
+        city_slug = request.query_params.get('city_slug')
+        
+        if (not category_id and not category_slug) or (not city_id and not city_slug):
+            return Response({
+                'detail': 'Both category (id or slug) and city (id or slug) parameters are required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        queryset = self.get_queryset()
+        
+        # Фильтрация по категории
+        if category_id:
+            queryset = queryset.filter(category_id=category_id)
+        elif category_slug:
+            queryset = queryset.filter(category__slug=category_slug)
+        
+        # Фильтрация по городу
+        if city_id:
+            queryset = queryset.filter(city_id=city_id)
+        elif city_slug:
+            queryset = queryset.filter(city__slug=city_slug)
         
         page = self.paginate_queryset(queryset)
         if page is not None:
