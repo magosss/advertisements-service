@@ -26,13 +26,52 @@ class CitySerializer(serializers.ModelSerializer):
 class CategorySerializer(serializers.ModelSerializer):
     """Сериализатор для категории"""
     advertisements_count = serializers.SerializerMethodField()
+    children_count = serializers.SerializerMethodField()
+    level = serializers.ReadOnlyField()
+    cities = CitySerializer(many=True, read_only=True)
+    available_cities_display = serializers.SerializerMethodField()
 
     class Meta:
         model = Category
-        fields = ['id', 'name', 'slug', 'description', 'icon', 'advertisements_count', 'created_at']
+        fields = ['id', 'name', 'slug', 'description', 'icon', 'parent', 'advertisements_count', 'children_count', 'level', 'cities', 'available_cities_display', 'created_at']
+
+    def get_available_cities_display(self, obj):
+        return obj.get_available_cities_display()
 
     def get_advertisements_count(self, obj):
         return obj.advertisements.filter(status='active').count()
+
+    def get_children_count(self, obj):
+        return obj.children.count()
+
+
+class CategoryWithChildrenSerializer(CategorySerializer):
+    """Сериализатор для категории с подкатегориями"""
+    children = CategorySerializer(many=True, read_only=True)
+    
+    class Meta(CategorySerializer.Meta):
+        fields = CategorySerializer.Meta.fields + ['children']
+
+
+class CategoryWithUnviewedCountSerializer(CategorySerializer):
+    """Сериализатор категории с количеством непросмотренных объявлений"""
+    unviewed_count = serializers.SerializerMethodField()
+    
+    class Meta(CategorySerializer.Meta):
+        fields = CategorySerializer.Meta.fields + ['unviewed_count']
+    
+    def get_unviewed_count(self, obj):
+        try:
+            user = self.context['request'].user
+            if user.is_authenticated:
+                # Получаем city_id из query параметров запроса
+                request = self.context['request']
+                city_id = request.query_params.get('city_id')
+                return obj.get_unviewed_count_for_user(user, city_id)
+            return 0
+        except Exception as e:
+            print(f"Ошибка в get_unviewed_count: {e}")
+            return 0
 
 
 class AdvertisementImageSerializer(serializers.ModelSerializer):
@@ -63,9 +102,9 @@ class AdvertisementListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Advertisement
         fields = [
-            'id', 'title', 'price', 'category', 'city', 'author', 'status',
-            'location', 'is_featured', 'views_count', 'primary_image',
-            'images_count', 'created_at', 'expires_at', 'is_expired'
+            'id', 'title', 'description', 'price', 'category', 'city', 'author', 'status',
+            'location', 'is_featured', 'primary_image',
+            'images_count', 'views_count', 'created_at', 'expires_at', 'is_expired'
         ]
 
     def get_primary_image(self, obj):
@@ -91,7 +130,7 @@ class AdvertisementDetailSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'title', 'description', 'price', 'category', 'city', 'author',
             'status', 'location', 'contact_phone', 'contact_email',
-            'is_featured', 'views_count', 'images', 'is_favorited',
+            'is_featured', 'images', 'is_favorited', 'views_count',
             'created_at', 'updated_at', 'expires_at', 'is_expired'
         ]
 
@@ -104,23 +143,127 @@ class AdvertisementDetailSerializer(serializers.ModelSerializer):
 
 class AdvertisementCreateSerializer(serializers.ModelSerializer):
     """Сериализатор для создания объявления"""
-    images = AdvertisementImageSerializer(many=True, required=False)
+    images = serializers.ListField(
+        child=serializers.ImageField(),
+        required=False,
+        write_only=True
+    )
+    images_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Advertisement
         fields = [
-            'title', 'description', 'price', 'category', 'city', 'location',
-            'contact_phone', 'contact_email', 'images'
+            'id', 'title', 'description', 'price', 'category', 'city',
+            'status', 'location', 'is_featured', 'images', 'images_count', 'views_count', 'created_at', 'expires_at', 'is_expired', 'author'
         ]
+        read_only_fields = ['id', 'author', 'created_at', 'expires_at', 'is_expired', 'views_count']
+
+    def get_expires_at(self, obj):
+        """Вычисляем дату истечения объявления (30 дней после создания)"""
+        if obj.created_at:
+            from datetime import timedelta
+            return obj.created_at + timedelta(days=30)
+        return None
+
+    def get_is_expired(self, obj):
+        """Проверяем, истекло ли объявление"""
+        if obj.created_at:
+            from datetime import timedelta
+            expires_at = obj.created_at + timedelta(days=30)
+            return timezone.now() > expires_at
+        return False
+
+    def get_images_count(self, obj):
+        return obj.images.count()
+
+    def to_representation(self, instance):
+        """Переопределяем представление для добавления полных объектов"""
+        data = super().to_representation(instance)
+        
+        # Добавляем expires_at
+        if instance.created_at:
+            from datetime import timedelta
+            expires_at = instance.created_at + timedelta(days=30)
+            data['expires_at'] = expires_at.isoformat()
+        
+        # Добавляем полный объект author
+        if instance.author:
+            data['author'] = {
+                'id': instance.author.id,
+                'username': instance.author.username,
+                'first_name': instance.author.first_name or '',
+                'last_name': instance.author.last_name or '',
+                'email': instance.author.email or ''
+            }
+        
+        # Добавляем полный объект category
+        if instance.category:
+            data['category'] = {
+                'id': instance.category.id,
+                'name': instance.category.name,
+                'slug': instance.category.slug,
+                'description': instance.category.description or '',
+                'icon': instance.category.icon or '',
+                'parent': instance.category.parent.id if instance.category.parent else None,
+                'advertisements_count': instance.category.advertisements.filter(status='active').count(),
+                'children_count': instance.category.children.count(),
+                'level': instance.category.level,
+                'cities': [],
+                'available_cities_display': instance.category.get_available_cities_display(),
+                'created_at': instance.category.created_at.isoformat() if instance.category.created_at else None
+            }
+        
+        # Добавляем полный объект city
+        if instance.city:
+            data['city'] = {
+                'id': instance.city.id,
+                'name': instance.city.name,
+                'slug': instance.city.slug,
+                'is_active': instance.city.is_active,
+                'advertisements_count': instance.city.advertisements.filter(status='active').count(),
+                'created_at': instance.city.created_at.isoformat() if instance.city.created_at else None
+            }
+        
+        # Добавляем изображения
+        images = []
+        primary_image = None
+        
+        for image in instance.images.all():
+            image_data = {
+                'id': image.id,
+                'image': self.context['request'].build_absolute_uri(image.image.url) if image.image else None,
+                'image_url': self.context['request'].build_absolute_uri(image.image.url) if image.image else None,
+                'caption': image.caption or '',
+                'is_primary': image.is_primary,
+                'created_at': image.created_at.isoformat() if image.created_at else None
+            }
+            images.append(image_data)
+            
+            # Если это первое изображение или помечено как основное, используем его как primary_image
+            if primary_image is None or image.is_primary:
+                primary_image = image_data
+        
+        data['images'] = images
+        data['primary_image'] = primary_image
+        
+        return data
 
     def create(self, validated_data):
         images_data = validated_data.pop('images', [])
         validated_data['author'] = self.context['request'].user
         advertisement = Advertisement.objects.create(**validated_data)
 
-        for image_data in images_data:
-            AdvertisementImage.objects.create(advertisement=advertisement, **image_data)
+        # Создаем записи для изображений
+        for index, image_file in enumerate(images_data):
+            # Первое изображение автоматически становится главным
+            is_primary = index == 0
+            AdvertisementImage.objects.create(
+                advertisement=advertisement,
+                image=image_file,
+                is_primary=is_primary
+            )
 
+        # Возвращаем объект с полными данными для iOS приложения
         return advertisement
 
     def update(self, instance, validated_data):
@@ -136,8 +279,14 @@ class AdvertisementCreateSerializer(serializers.ModelSerializer):
             # Удаляем старые изображения
             instance.images.all().delete()
             # Создаем новые
-            for image_data in images_data:
-                AdvertisementImage.objects.create(advertisement=instance, **image_data)
+            for index, image_file in enumerate(images_data):
+                # Первое изображение автоматически становится главным
+                is_primary = index == 0
+                AdvertisementImage.objects.create(
+                    advertisement=instance,
+                    image=image_file,
+                    is_primary=is_primary
+                )
 
         return instance
 
@@ -166,3 +315,6 @@ class FavoriteCreateSerializer(serializers.ModelSerializer):
         if Favorite.objects.filter(user=user, advertisement=value).exists():
             raise serializers.ValidationError("Объявление уже в избранном")
         return value
+
+
+
