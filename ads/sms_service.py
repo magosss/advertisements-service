@@ -70,6 +70,38 @@ class SMSService:
         if not clean_phone.startswith('7') or len(clean_phone) != 11:
             return {'error': 'Неверный формат номера телефона'}
         
+        # ТЕСТОВЫЙ РЕЖИМ: для номера 79999999999 не отправляем SMS
+        if clean_phone == '79999999999':
+            print(f"🧪 ТЕСТОВЫЙ РЕЖИМ: SMS не отправляется для {clean_phone}")
+            print(f"🧪 Используйте код: 1234")
+            
+            # Создаем фиктивную запись верификации для тестового номера
+            verification, created = SMSVerification.objects.get_or_create(
+                phone=clean_phone,
+                defaults={'code': '1234', 'expires_at': timezone.now() + timezone.timedelta(minutes=5)}
+            )
+            
+            # Обновляем код и время истечения
+            verification.code = '1234'
+            verification.expires_at = timezone.now() + timezone.timedelta(minutes=5)
+            verification.save()
+            
+            # Сохраняем код у пользователя, если он существует
+            try:
+                from .models import UserLastCode
+                user = User.objects.get(username=clean_phone)
+                UserLastCode.update_or_create_code(user, clean_phone, '1234')
+                print(f"💾 Тестовый код сохранен у пользователя {user.username}")
+            except User.DoesNotExist:
+                print(f"ℹ️ Тестовый пользователь {clean_phone} не найден")
+            
+            return {
+                'success': True,
+                'message': 'Код отправлен (тестовый режим)',
+                'phone': clean_phone
+            }
+        
+        # Обычная логика для реальных номеров
         # Создаем или получаем существующую запись верификации
         verification, created = SMSVerification.objects.get_or_create(
             phone=clean_phone,
@@ -120,6 +152,29 @@ class SMSService:
         # Очищаем номер телефона
         clean_phone = ''.join(filter(str.isdigit, phone))
         
+        # ТЕСТОВЫЙ РЕЖИМ: для номера 79999999999 всегда принимаем код 1234
+        if clean_phone == '79999999999' and code == '1234':
+            print(f"🧪 ТЕСТОВЫЙ РЕЖИМ: Код {code} принят для {clean_phone}")
+            
+            # Создаем или обновляем запись верификации
+            verification, created = SMSVerification.objects.get_or_create(
+                phone=clean_phone,
+                defaults={'code': '1234', 'expires_at': timezone.now() + timezone.timedelta(minutes=5)}
+            )
+            
+            # Обновляем код и время истечения
+            verification.code = '1234'
+            verification.expires_at = timezone.now() + timezone.timedelta(minutes=5)
+            verification.is_verified = True
+            verification.save()
+            
+            return {
+                'success': True,
+                'message': 'Код подтвержден (тестовый режим)',
+                'phone': clean_phone
+            }
+        
+        # Обычная логика для реальных номеров
         try:
             # Ищем запись верификации
             verification = SMSVerification.objects.filter(
